@@ -1,43 +1,51 @@
 const express = require('express');
-const router = express.Router();
 const axios = require('axios');
 const Appointment = require('../models/Appointment');
-const auth = require('../middleware/auth'); // A nossa barreira de segurança
+const auth = require('../middleware/auth');
 
-// Rota POST para criar um novo agendamento
+const router = express.Router();
+
 router.post('/', auth, async (req, res) => {
   try {
     const { data, hora, cep } = req.body;
 
-    // 1. Inteligência: Consultar o ViaCEP automaticamente
-    const viaCepResponse = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
-    if (viaCepResponse.data.erro) {
-        return res.status(400).json({ erro: "O CEP fornecido é inválido." });
+    if (!data || !hora || !cep) {
+      return res.status(400).json({ erro: 'Data, hora e CEP são obrigatórios.' });
     }
-    
-    // Montar o endereço bonito para salvar no banco
-    const enderecoCompleto = `${viaCepResponse.data.logradouro}, ${viaCepResponse.data.bairro}, ${viaCepResponse.data.localidade} - ${viaCepResponse.data.uf}`;
 
-    
-   // 2. Clima: Buscar a temperatura baseada na cidade retornada pelo ViaCEP
-    let climaPrevisto = "Previsão indisponível no momento"; 
-    try {
-      const cidade = viaCepResponse.data.localidade; // Ex: "Salvador"
-      const apiKey = process.env.OPENWEATHER_API_KEY;
-      
-      const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${cidade}&appid=${apiKey}&units=metric&lang=pt_br`;
-      const weatherResponse = await axios.get(weatherUrl);
-      
-      const temperatura = weatherResponse.data.main.temp;
-      const descricao = weatherResponse.data.weather[0].description;
-      
-      climaPrevisto = `${temperatura}°C, ${descricao}`;
-    } catch (climaErr) {
-      console.log("Aviso: Não foi possível buscar o clima agora.");
+    const jaExiste = await Appointment.findOne({ data, hora });
+    if (jaExiste) {
+      return res.status(409).json({ erro: 'Horário já ocupado. Escolha outro horário.' });
     }
-    // 3. Salvar a consulta no MongoDB
+
+    const viaCepResponse = await axios.get(`https://viacep.com.br/ws/${cep.replace(/\D/g, '')}/json/`);
+    if (viaCepResponse.data.erro) {
+      return res.status(400).json({ erro: 'O CEP fornecido é inválido.' });
+    }
+
+    const enderecoCompleto = `${viaCepResponse.data.logradouro || 'Sem logradouro'}, ${viaCepResponse.data.bairro || ''}, ${viaCepResponse.data.localidade} - ${viaCepResponse.data.uf}`;
+
+    let climaPrevisto = 'Previsão indisponível no momento';
+
+    try {
+      const cidade = viaCepResponse.data.localidade;
+      const apiKey = process.env.OPENWEATHER_API_KEY;
+
+      if (apiKey) {
+        const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${cidade}&appid=${apiKey}&units=metric&lang=pt_br`;
+        const weatherResponse = await axios.get(weatherUrl);
+
+        const temperatura = weatherResponse.data.main.temp;
+        const descricao = weatherResponse.data.weather[0].description;
+
+        climaPrevisto = `${temperatura}°C, ${descricao}`;
+      }
+    } catch (climaErr) {
+      console.log('Aviso: Não foi possível buscar o clima agora.');
+    }
+
     const novoAgendamento = new Appointment({
-      pacienteId: req.usuario.id, // Veio direto do Token JWT! Não precisa ser digitado.
+      pacienteId: req.usuario.userId,
       data,
       hora,
       cep,
@@ -47,13 +55,24 @@ router.post('/', auth, async (req, res) => {
 
     await novoAgendamento.save();
 
-    res.status(201).json({
-        mensagem: "Consulta agendada com sucesso!",
-        agendamento: novoAgendamento
+    return res.status(201).json({
+      mensagem: 'Consulta agendada com sucesso!',
+      agendamento: novoAgendamento
     });
-
   } catch (err) {
-    res.status(500).json({ erro: "Erro ao agendar consulta: " + err.message });
+    return res.status(500).json({ erro: `Erro ao agendar consulta: ${err.message}` });
+  }
+});
+
+router.get('/', auth, async (req, res) => {
+  try {
+    const filtro = req.usuario.tipo === 'secretario' ? {} : { pacienteId: req.usuario.userId };
+
+    const agendamentos = await Appointment.find(filtro).sort({ data: 1, hora: 1 });
+
+    return res.json(agendamentos);
+  } catch (err) {
+    return res.status(500).json({ erro: 'Erro ao listar agendamentos.' });
   }
 });
 
