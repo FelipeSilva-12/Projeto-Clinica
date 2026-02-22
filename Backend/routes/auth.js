@@ -110,11 +110,6 @@ router.post('/login', async (req, res) => {
 
     return res.json({ token, usuario: { nome: user.nome, email: user.email, tipo: user.tipo } });
   } catch (error) {
-    if (error && (error.name === 'MongooseServerSelectionError' || error.name === 'MongoServerSelectionError')) {
-      process.env.AUTH_FALLBACK = 'true';
-      return res.status(503).json({ message: 'Banco indisponível. Tente novamente para entrar com a conta local.' });
-    }
-
     console.error('Erro detalhado no login:', error);
     return res.status(500).json({ message: 'Erro no login.' });
   }
