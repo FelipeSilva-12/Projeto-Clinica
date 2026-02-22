@@ -29,7 +29,7 @@
 </template>
 
 <script>
-const API_URL = 'http://localhost:3000';
+import { API_URL, lerResposta, mensagemDeErroDeRede } from '../servicos/api';
 
 export default {
   data() {
@@ -60,11 +60,11 @@ export default {
     async buscarAgendamentos() {
       try {
         const response = await fetch(`${API_URL}/agendamentos`, { headers: this.getHeaders() });
-        const data = await response.json();
-        if (!response.ok) throw new Error();
+        const data = await lerResposta(response);
+        if (!response.ok) throw new Error(data.erro || 'Erro ao carregar agendamentos.');
         this.agendamentos = data;
       } catch (error) {
-        this.erro = 'Erro ao carregar agendamentos.';
+        this.erro = mensagemDeErroDeRede(error);
       }
     },
     async agendar() {
@@ -76,13 +76,13 @@ export default {
           headers: this.getHeaders(true),
           body: JSON.stringify(this.form)
         });
-        const data = await response.json();
+        const data = await lerResposta(response);
         if (!response.ok) throw new Error(data.erro || 'Erro ao agendar.');
         this.mensagem = data.mensagem;
         this.form = { data: '', hora: '', cep: '' };
         this.buscarAgendamentos();
       } catch (error) {
-        this.erro = error.message;
+        this.erro = mensagemDeErroDeRede(error);
       }
     },
     logout() {

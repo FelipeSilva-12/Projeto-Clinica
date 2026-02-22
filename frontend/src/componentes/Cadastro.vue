@@ -19,7 +19,7 @@
 </template>
 
 <script>
-const API_URL = 'http://localhost:3000';
+import { API_URL, lerResposta, mensagemDeErroDeRede } from '../servicos/api';
 
 export default {
   data() {
@@ -29,17 +29,24 @@ export default {
     async cadastro() {
       this.mensagem = '';
       this.erro = '';
+
       try {
         const response = await fetch(`${API_URL}/auth/cadastro`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nome: this.nome, email: this.email, senha: this.senha, tipo: this.tipo })
         });
-        const data = await response.json();
+
+        const data = await lerResposta(response);
         if (!response.ok) throw new Error(data.message || 'Erro ao cadastrar.');
-        this.mensagem = data.message;
+
+        this.mensagem = data.message || 'Usuário cadastrado com sucesso.';
+        this.nome = '';
+        this.email = '';
+        this.senha = '';
+        this.tipo = '';
       } catch (error) {
-        this.erro = error.message;
+        this.erro = mensagemDeErroDeRede(error);
       }
     }
   }

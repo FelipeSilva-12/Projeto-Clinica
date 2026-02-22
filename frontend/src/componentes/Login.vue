@@ -12,7 +12,7 @@
 </template>
 
 <script>
-const API_URL = 'http://localhost:3000';
+import { API_URL, lerResposta, mensagemDeErroDeRede } from '../servicos/api';
 
 export default {
   data() {
@@ -21,6 +21,7 @@ export default {
   methods: {
     async login() {
       this.erro = '';
+
       try {
         const response = await fetch(`${API_URL}/auth/login`, {
           method: 'POST',
@@ -28,14 +29,14 @@ export default {
           body: JSON.stringify({ email: this.email, senha: this.senha })
         });
 
-        const data = await response.json();
+        const data = await lerResposta(response);
         if (!response.ok) throw new Error(data.message || 'Erro ao fazer login.');
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('usuario', JSON.stringify(data.usuario));
         this.$router.push('/painel');
       } catch (error) {
-        this.erro = error.message;
+        this.erro = mensagemDeErroDeRede(error);
       }
     }
   }
