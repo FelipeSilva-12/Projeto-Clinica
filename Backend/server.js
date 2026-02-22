@@ -9,6 +9,7 @@ app.use(express.json());
 
 // Logo abaixo dos seus outros "app.use"
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/appointments', require('./routes/appointments'));
 
 // A MÁGICA ACONTECE AQUI
 mongoose.connect(process.env.MONGODB_URI, {
