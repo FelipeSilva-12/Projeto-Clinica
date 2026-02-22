@@ -51,21 +51,8 @@ router.post('/cadastro', async (req, res) => {
       return res.status(400).json({ message: 'Dados inválidos para cadastro.' });
     }
 
-    if (error && (error.name === 'MongooseServerSelectionError' || error.name === 'MongoServerSelectionError')) {
-      process.env.AUTH_FALLBACK = 'true';
-      try {
-        await criarUsuarioLocal({ nome, email, senha, tipo });
-        return res.status(201).json({ message: 'Usuário criado com sucesso.' });
-      } catch (erroLocal) {
-        if (erroLocal && erroLocal.code === 11000) {
-          return res.status(409).json({ message: 'E-mail já cadastrado.' });
-        }
-      }
-    }
-
-    const mensagemInterna = error && error.message ? ` Detalhe: ${error.message}` : '';
     console.error('Erro detalhado no cadastro:', error);
-    return res.status(500).json({ message: `Erro ao cadastrar usuário.${mensagemInterna}` });
+    return res.status(500).json({ message: 'Erro ao cadastrar usuário.' });
   }
 });
 
