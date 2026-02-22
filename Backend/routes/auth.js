@@ -5,7 +5,10 @@ const User = require('../models/user');
 const router = express.Router();
 
 router.post('/cadastro', async (req, res) => {
-  const { nome, email, senha, tipo } = req.body;
+  const nome = (req.body.nome || '').trim();
+  const email = (req.body.email || '').trim().toLowerCase();
+  const senha = req.body.senha || '';
+  const tipo = req.body.tipo;
 
   if (!nome || !email || !senha || !tipo) {
     return res.status(400).json({ message: 'Preencha todos os campos.' });
@@ -26,12 +29,27 @@ router.post('/cadastro', async (req, res) => {
 
     return res.status(201).json({ message: 'Usuário criado com sucesso.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Erro ao cadastrar usuário.' });
+    if (error && error.code === 11000) {
+      return res.status(409).json({ message: 'E-mail já cadastrado.' });
+    }
+
+    if (error && error.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Dados inválidos para cadastro.' });
+    }
+
+    if (error && (error.name === 'MongooseServerSelectionError' || error.name === 'MongoServerSelectionError')) {
+      return res.status(503).json({ message: 'Banco de dados indisponível no momento. Tente novamente em instantes.' });
+    }
+
+    const mensagemInterna = error && error.message ? ` Detalhe: ${error.message}` : '';
+    console.error('Erro detalhado no cadastro:', error);
+    return res.status(500).json({ message: `Erro ao cadastrar usuário.${mensagemInterna}` });
   }
 });
 
 router.post('/login', async (req, res) => {
-  const { email, senha } = req.body;
+  const email = (req.body.email || '').trim().toLowerCase();
+  const senha = req.body.senha || '';
 
   if (!email || !senha) {
     return res.status(400).json({ message: 'Informe e-mail e senha.' });
@@ -57,6 +75,7 @@ router.post('/login', async (req, res) => {
 
     return res.json({ token, usuario: { nome: user.nome, email: user.email, tipo: user.tipo } });
   } catch (error) {
+    console.error('Erro detalhado no login:', error);
     return res.status(500).json({ message: 'Erro no login.' });
   }
 });
