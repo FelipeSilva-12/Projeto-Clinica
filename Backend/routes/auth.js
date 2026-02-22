@@ -1,11 +1,24 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const {
+  buscarUsuarioPorEmailLocal,
+  criarUsuarioLocal,
+  compararSenhaLocal
+} = require('../services/usuariosLocais');
 
 const router = express.Router();
+const JWT_SECRET_PADRAO = 'clinica-local-secret';
+
+function usarCadastroLocal() {
+  return process.env.AUTH_FALLBACK === 'true';
+}
 
 router.post('/cadastro', async (req, res) => {
-  const { nome, email, senha, tipo } = req.body;
+  const nome = (req.body.nome || '').trim();
+  const email = (req.body.email || '').trim().toLowerCase();
+  const senha = req.body.senha || '';
+  const tipo = req.body.tipo;
 
   if (!nome || !email || !senha || !tipo) {
     return res.status(400).json({ message: 'Preencha todos os campos.' });
@@ -16,6 +29,11 @@ router.post('/cadastro', async (req, res) => {
   }
 
   try {
+    if (usarCadastroLocal()) {
+      await criarUsuarioLocal({ nome, email, senha, tipo });
+      return res.status(201).json({ message: 'Usuário criado com sucesso.' });
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(409).json({ message: 'E-mail já cadastrado.' });
@@ -26,37 +44,63 @@ router.post('/cadastro', async (req, res) => {
 
     return res.status(201).json({ message: 'Usuário criado com sucesso.' });
   } catch (error) {
+    if (error && error.code === 11000) {
+      return res.status(409).json({ message: 'E-mail já cadastrado.' });
+    }
+
+    if (error && error.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Dados inválidos para cadastro.' });
+    }
+
+    console.error('Erro detalhado no cadastro:', error);
     return res.status(500).json({ message: 'Erro ao cadastrar usuário.' });
   }
 });
 
 router.post('/login', async (req, res) => {
-  const { email, senha } = req.body;
+  const email = (req.body.email || '').trim().toLowerCase();
+  const senha = req.body.senha || '';
 
   if (!email || !senha) {
     return res.status(400).json({ message: 'Informe e-mail e senha.' });
   }
 
   try {
-    const user = await User.findOne({ email });
+    let user = null;
+    let senhaValida = false;
 
-    if (!user) {
-      return res.status(400).json({ message: 'Usuário não encontrado.' });
+    if (usarCadastroLocal()) {
+      user = await buscarUsuarioPorEmailLocal(email);
+      if (!user) {
+        return res.status(400).json({ message: 'Usuário não encontrado.' });
+      }
+
+      senhaValida = await compararSenhaLocal(user, senha);
+    } else {
+      user = await User.findOne({ email });
+
+      if (!user) {
+        return res.status(400).json({ message: 'Usuário não encontrado.' });
+      }
+
+      senhaValida = await user.compararSenha(senha);
     }
 
-    const senhaValida = await user.compararSenha(senha);
     if (!senhaValida) {
       return res.status(400).json({ message: 'Senha inválida.' });
     }
 
+    const segredoJwt = process.env.JWT_SECRET || JWT_SECRET_PADRAO;
+
     const token = jwt.sign(
       { userId: user._id, tipo: user.tipo, nome: user.nome },
-      process.env.JWT_SECRET,
+      segredoJwt,
       { expiresIn: '8h' }
     );
 
     return res.json({ token, usuario: { nome: user.nome, email: user.email, tipo: user.tipo } });
   } catch (error) {
+    console.error('Erro detalhado no login:', error);
     return res.status(500).json({ message: 'Erro no login.' });
   }
 });
