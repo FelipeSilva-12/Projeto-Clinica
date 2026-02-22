@@ -22,14 +22,20 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/agendamentos', appointmentRoutes);
 
+function iniciarServidor() {
+  app.listen(port, () => {
+    console.log(`Servidor rodando na porta ${port}`);
+  });
+}
+
 mongoose.connect(mongoUri)
   .then(() => {
+    process.env.AUTH_FALLBACK = 'false';
     console.log('Conectado ao MongoDB');
-    app.listen(port, () => {
-      console.log(`Servidor rodando na porta ${port}`);
-    });
+    iniciarServidor();
   })
   .catch((err) => {
-    console.error('Erro ao conectar com o MongoDB:', err.message);
-    process.exit(1);
+    process.env.AUTH_FALLBACK = 'true';
+    console.error('Aviso: não foi possível conectar ao MongoDB. Cadastro/Login funcionarão em modo local.', err.message);
+    iniciarServidor();
   });

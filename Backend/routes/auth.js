@@ -1,8 +1,17 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const {
+  buscarUsuarioPorEmailLocal,
+  criarUsuarioLocal,
+  compararSenhaLocal
+} = require('../services/usuariosLocais');
 
 const router = express.Router();
+
+function usarCadastroLocal() {
+  return process.env.AUTH_FALLBACK === 'true';
+}
 
 router.post('/cadastro', async (req, res) => {
   const nome = (req.body.nome || '').trim();
@@ -19,6 +28,11 @@ router.post('/cadastro', async (req, res) => {
   }
 
   try {
+    if (usarCadastroLocal()) {
+      await criarUsuarioLocal({ nome, email, senha, tipo });
+      return res.status(201).json({ message: 'Usuário criado com sucesso.' });
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(409).json({ message: 'E-mail já cadastrado.' });
@@ -51,13 +65,26 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ email });
+    let user = null;
+    let senhaValida = false;
 
-    if (!user) {
-      return res.status(400).json({ message: 'Usuário não encontrado.' });
+    if (usarCadastroLocal()) {
+      user = await buscarUsuarioPorEmailLocal(email);
+      if (!user) {
+        return res.status(400).json({ message: 'Usuário não encontrado.' });
+      }
+
+      senhaValida = await compararSenhaLocal(user, senha);
+    } else {
+      user = await User.findOne({ email });
+
+      if (!user) {
+        return res.status(400).json({ message: 'Usuário não encontrado.' });
+      }
+
+      senhaValida = await user.compararSenha(senha);
     }
 
-    const senhaValida = await user.compararSenha(senha);
     if (!senhaValida) {
       return res.status(400).json({ message: 'Senha inválida.' });
     }
