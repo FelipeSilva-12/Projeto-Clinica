@@ -1,10 +1,8 @@
-import Vue from 'vue'
+import { createApp } from 'vue'
 import App from './App.vue'
-import router from './router'
+import router from './router' // Vai importar o nosso router corrigido
 
-Vue.config.productionTip = false
+const app = createApp(App)
 
-new Vue({
-  router,
-  render: h => h(App)
-}).$mount('#app')
+app.use(router) // Avisa o Vue que vamos usar rotas
+app.mount('#app') // Liga o motor à div com id "app"

@@ -1,17 +1,16 @@
-// frontend/src/router/index.js
-
-import Vue from 'vue'
-import Router from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../components/Login.vue'
-import Cadastro from '../components/Cadastro.vue'
 import Painel from '../components/Painel.vue'
+// NOTA: Se já tiver o ficheiro Cadastro.vue criado na pasta components, remova as duas barras (//) da linha abaixo:
+// import Cadastro from '../components/Cadastro.vue'
 
-Vue.use(Router)
-
-export default new Router({
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', component: Login },
-    { path: '/cadastro', component: Cadastro },
-    { path: '/painel', component: Painel, meta: { requiresAuth: true } }
+    { path: '/painel', component: Painel },
+    // { path: '/cadastro', component: Cadastro } // Descomente esta linha também se o ficheiro existir
   ]
 })
+
+export default router
