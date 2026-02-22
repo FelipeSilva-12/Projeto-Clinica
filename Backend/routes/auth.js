@@ -1,43 +1,63 @@
-// backend/routes/auth.js
-
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const User = require('../models/user');
+
 const router = express.Router();
 
-// Rota de cadastro
 router.post('/cadastro', async (req, res) => {
   const { nome, email, senha, tipo } = req.body;
 
+  if (!nome || !email || !senha || !tipo) {
+    return res.status(400).json({ message: 'Preencha todos os campos.' });
+  }
+
+  if (!['paciente', 'secretario'].includes(tipo)) {
+    return res.status(400).json({ message: 'Tipo de usuário inválido.' });
+  }
+
   try {
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(409).json({ message: 'E-mail já cadastrado.' });
+    }
+
     const user = new User({ nome, email, senha, tipo });
     await user.save();
-    res.status(201).json({ message: 'Usuário criado com sucesso!' });
+
+    return res.status(201).json({ message: 'Usuário criado com sucesso.' });
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao cadastrar o usuário' });
+    return res.status(500).json({ message: 'Erro ao cadastrar usuário.' });
   }
 });
 
-// Rota de login
 router.post('/login', async (req, res) => {
   const { email, senha } = req.body;
+
+  if (!email || !senha) {
+    return res.status(400).json({ message: 'Informe e-mail e senha.' });
+  }
 
   try {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ message: 'Usuário não encontrado' });
+      return res.status(400).json({ message: 'Usuário não encontrado.' });
     }
 
     const senhaValida = await user.compararSenha(senha);
     if (!senhaValida) {
-      return res.status(400).json({ message: 'Senha inválida' });
+      return res.status(400).json({ message: 'Senha inválida.' });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token });
+    const token = jwt.sign(
+      { userId: user._id, tipo: user.tipo, nome: user.nome },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    return res.json({ token, usuario: { nome: user.nome, email: user.email, tipo: user.tipo } });
   } catch (error) {
-    res.status(500).json({ message: 'Erro no login' });
+    return res.status(500).json({ message: 'Erro no login.' });
   }
 });
 

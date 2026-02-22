@@ -1,33 +1,35 @@
-// backend/server.js (ou app.js)
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+
+const authRoutes = require('./routes/auth');
+const appointmentRoutes = require('./routes/appointments');
+
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
 
-// Middlewares
 app.use(express.json());
 app.use(cors());
 
-// Conexão com o MongoDB
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Conectado ao MongoDB'))
-  .catch((err) => console.error('Erro ao conectar com o MongoDB', err));
-
-// Rota de teste
 app.get('/', (req, res) => {
-  res.send('Backend funcionando!');
+  res.json({ status: 'ok', message: 'API da clínica funcionando' });
 });
 
-// Importando as rotas de autenticação
-const authRoutes = require('./routes/auth');
 app.use('/auth', authRoutes);
+app.use('/agendamentos', appointmentRoutes);
 
-// Rodando o servidor
-app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
-});
+mongoose.connect(mongoUri)
+  .then(() => {
+    console.log('Conectado ao MongoDB');
+    app.listen(port, () => {
+      console.log(`Servidor rodando na porta ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Erro ao conectar com o MongoDB:', err.message);
+    process.exit(1);
+  });
