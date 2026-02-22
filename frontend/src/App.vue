@@ -1,19 +1,22 @@
-<script setup>
-import { RouterView } from 'vue-router'
-</script>
-
 <template>
-  <div class="app-container">
-    <RouterView />
+  <div id="app">
+    <img alt="Vue logo" src="./assets/logo.png">
+    <router-view/>
   </div>
 </template>
 
+<script>
+export default {
+  name: 'App',
+};
+</script>
+
 <style>
-/* CSS básico para limpar as margens do navegador e dar uma cor de fundo */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f4f7f6;
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
 }
 </style>

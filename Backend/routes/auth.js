@@ -1,64 +1,43 @@
+// backend/routes/auth.js
+
 const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const router = express.Router();
 
-// Rota para registrar novo usuário
-router.post('/register', async (req, res) => {
+// Rota de cadastro
+router.post('/cadastro', async (req, res) => {
+  const { nome, email, senha, tipo } = req.body;
+
   try {
-    const { nome, email, senha, cargo } = req.body;
-
-    // Criptografando a senha antes de salvar
-    const salt = await bcrypt.genSalt(10);
-    const senhaCripto = await bcrypt.hash(senha, salt);
-
-    const novoUsuario = new User({
-      nome,
-      email,
-      senha: senhaCripto,
-      cargo
-    });
-
-    await novoUsuario.save();
-    res.status(201).json({ mensagem: "Usuário criado com sucesso!" });
-  } catch (err) {
-    res.status(500).json({ erro: "Erro ao cadastrar: " + err.message });
+    const user = new User({ nome, email, senha, tipo });
+    await user.save();
+    res.status(201).json({ message: 'Usuário criado com sucesso!' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao cadastrar o usuário' });
   }
 });
 
-// Rota de LOGIN
+// Rota de login
 router.post('/login', async (req, res) => {
+  const { email, senha } = req.body;
+
   try {
-    const { email, senha } = req.body;
+    const user = await User.findOne({ email });
 
-    // 1. Verificar se o utilizador existe
-    const usuario = await User.findOne({ email });
-    if (!usuario) {
-      return res.status(400).json({ erro: "Utilizador não encontrado." });
+    if (!user) {
+      return res.status(400).json({ message: 'Usuário não encontrado' });
     }
 
-    // 2. Verificar se a palavra-passe está correta
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    const senhaValida = await user.compararSenha(senha);
     if (!senhaValida) {
-      return res.status(400).json({ erro: "Palavra-passe incorreta." });
+      return res.status(400).json({ message: 'Senha inválida' });
     }
 
-    // 3. Gerar o Token JWT (o "crachá")
-    const token = jwt.sign(
-      { id: usuario._id, cargo: usuario.cargo },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' } // O crachá expira em 1 hora
-    );
-
-    res.status(200).json({ 
-      mensagem: "Login efetuado com sucesso!", 
-      token,
-      usuario: { id: usuario._id, nome: usuario.nome, cargo: usuario.cargo }
-    });
-
-  } catch (err) {
-    res.status(500).json({ erro: "Erro ao fazer login: " + err.message });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token });
+  } catch (error) {
+    res.status(500).json({ message: 'Erro no login' });
   }
 });
 

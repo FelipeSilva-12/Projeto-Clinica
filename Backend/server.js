@@ -1,25 +1,33 @@
+// backend/server.js (ou app.js)
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+const dotenv = require('dotenv');
+dotenv.config();
 
 const app = express();
-app.use(cors());
+const port = process.env.PORT || 3000;
+
+// Middlewares
 app.use(express.json());
+app.use(cors());
 
-// Logo abaixo dos seus outros "app.use"
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/appointments', require('./routes/appointments'));
+// Conexão com o MongoDB
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Conectado ao MongoDB'))
+  .catch((err) => console.error('Erro ao conectar com o MongoDB', err));
 
-// A MÁGICA ACONTECE AQUI
-mongoose.connect(process.env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 5000 // Se não conectar em 5s, ele avisa na hora
-})
-.then(() => console.log("✅ AGORA SIM! Conectado ao MongoDB Atlas!"))
-.catch(err => {
-  console.error("❌ ERRO REAL DE CONEXÃO:");
-  console.error(err.message);
+// Rota de teste
+app.get('/', (req, res) => {
+  res.send('Backend funcionando!');
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor na porta ${PORT}`));
+// Importando as rotas de autenticação
+const authRoutes = require('./routes/auth');
+app.use('/auth', authRoutes);
+
+// Rodando o servidor
+app.listen(port, () => {
+  console.log(`Servidor rodando na porta ${port}`);
+});
